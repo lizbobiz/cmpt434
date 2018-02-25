@@ -1,25 +1,31 @@
 /*******************************************************************************
  * CMPT 434
  * Assignment 2
- * 
+ *
  * Lizzie Adams
  * ema651
  * 11139300
  ******************************************************************************/
 
+/* Local includes */
 #include "sender.h"
 
 /* Global variable definitions */
-int windowsz;
-int initseq;
-int timeout;
-char *recvinfofilename;
-struct recv recvs[MAXRECV];
-int numrecv = 0;
+int maxwindowsz;                    /* Maximum sliding window size */
+int seqnum;                         /* Current sequence number */
+int timeout;                        /* Timeout value in seconds */
+char *recvinfofilename;             /* Name of file containing receiver info */
 
+struct recv recvs[MAXRECV];         /* Receiver info array */
+int numrecv = 0;                   /* Number of receivers */
+
+struct queue *msg_q;                /* Queue of pending outgoing messages */
+
+/* Program entry point */
 int main(int argc, char *argv[]) {
     FILE* fp;
-    char buf[128];
+    char buf[MSGSZ-HEADERSZ];
+    char msg[MSGSZ];
     char *token;
     struct addrinfo hints, *servinfo, *p;
     int rv;
@@ -32,14 +38,14 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
-    /* Get sliding window size */
-    if (strtoint(argv[1], &windowsz) != 0) {
+    /* Get maximum sliding window size */
+    if (strtoint(argv[1], &maxwindowsz) != 0) {
         fprintf(stderr, "sender: window size must be an integer\n");
         return 1;
     }
     
     /* Get initial sequence number */
-    if (strtoint(argv[2], &initseq) != 0) {
+    if (strtoint(argv[2], &seqnum) != 0) {
         fprintf(stderr, "sender: initial sequence number must be an integer\n");
         return 1;
     }
@@ -69,7 +75,7 @@ int main(int argc, char *argv[]) {
         
         /* Get hostname */
         token = strtok(buf, " \t");
-        if (strlen(token) > HOSTNAMESZ) {
+        if (strlen(token) >= HOSTNAMESZ) {
             fprintf(stderr, "sender: hostname %s is too long\n", token);
             return 1;
         }
@@ -77,7 +83,7 @@ int main(int argc, char *argv[]) {
         
         /* Get port number */
         token = strtok(NULL, " \t\n");
-        if (strlen(token) > PORTSZ) {
+        if (strlen(token) >= PORTSZ) {
             fprintf(stderr, "sender: port %s is too long\n", token);
             return 1;
         }
@@ -87,12 +93,12 @@ int main(int argc, char *argv[]) {
     }
     fclose(fp);
     
-    /* Fill in hints for UDP client using IPv6 */
+    /* Fill in hints for UDP */
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET6;
+    hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_DGRAM;
     
-    /* Establish a connection with each receiver */
+    /* Iterate over receivers */
     for (i=0; i < numrecv; i++) {
         /* Get addrinfo for client */
         if ((rv = getaddrinfo(recvs[i].hostname, recvs[i].port, &hints,
@@ -110,34 +116,57 @@ int main(int argc, char *argv[]) {
                 continue;
             }
             
-            /* Attempt to bind socket */
-            if (bind(recvs[i].fd, p->ai_addr, p->ai_addrlen) == -1) {
-                close(recvs[i].fd);
-                perror("sender: bind");
-                continue;
-            }
-            
-            /* Upon successful binding, save address and address length */
-            memcpy(&recvs[i].addr, p->ai_addr, sizeof(recvs[i].addr));
-            recvs[i].addrlen = p->ai_addrlen;
             break;
         }
         
-        /* If failed to bind socket, exit on error */
+        /* If socket creation failed, exit on error */
         if (p == NULL) {
             fprintf(stderr, "sender: failed to bind socket\n");
             return 1;
         }
         
+        /* Upon successful socket creation, save address and address length */
+        memcpy(&recvs[i].addr, p->ai_addr, sizeof(recvs[i].addr));
+        recvs[i].addrlen = p->ai_addrlen;
+        
         /* Free getaddrinfo results */
         freeaddrinfo(servinfo);
         
+        /* Initialize receiver sliding window */
+        recvs[i].seqnum = seqnum;
+        recvs[i].windowsz = 0;
+        
         /* Send initial sequence number to receiver */
-        sprintf(buf, "Initial sequence value: %i\n", initseq);
-        if (sendto(recvs[i].fd, buf, strlen(buf), 0,
+        snprintf(msg, sizeof(msg), "%i", seqnum);
+        if (sendto(recvs[i].fd, msg, strlen(msg), 0,
             &recvs[i].addr, recvs[i].addrlen) == -1) {
             perror("sender: sendto");
             return 1;
+        }
+    }
+    
+    /* Create message queue */
+    msg_q = q_create();
+    
+    /* Begin receiving messages */
+    while (1) {
+        /* Read message from stdin and trim newline */
+        fgets(buf, sizeof(buf), stdin);
+        buf[strlen(buf)-1] = '\0';
+        
+        /* Create message containing header and body and add it to the queue */
+        snprintf(msg, MSGSZ, "%i %s", seqnum++, buf);
+        q_enqueue(msg_q, msg);
+        q_print(msg_q);
+        
+        /* Attempt to send message to all receivers */
+        for (i=0; i < numrecv; i++) {
+            if (sendto(recvs[i].fd, msg, strlen(msg), 0,
+                &recvs[i].addr, recvs[i].addrlen) == -1) {
+                perror("sender: sendto");
+                return 1;
+            }
+            recvs[i].windowsz++;
         }
     }
     

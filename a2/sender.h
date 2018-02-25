@@ -12,29 +12,29 @@
 
 #define _XOPEN_SOURCE   600
 
+/* Local includes */
+#include "param.h"
+
 /* Library includes */
 #include <netdb.h>
+#include <queue.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strconvert.h>
 #include <string.h>
-/*#include <sys/types.h>
-#include <sys/socket.h>*/
 #include <unistd.h>
-
-/* Global constant definitions */
-#define MAXRECV         10          /* Maximum number of receivers */
-#define HOSTNAMESZ      32          /* Maximum length of hostname string */
-#define PORTSZ          5           /* Maximum length of port string */
-#define SERVERPORT      "30000"     /* Port to be used by server */
 
 /* Structure representing receiver address info */
 struct recv {
-    char hostname[HOSTNAMESZ+1];
-    char port[PORTSZ+1];
-    struct sockaddr addr;
-    size_t addrlen;
-    int fd;
+    char hostname[HOSTNAMESZ];      /* Hostname */
+    char port[PORTSZ];              /* Port number */
+    
+    struct sockaddr addr;           /* Socket address information */
+    socklen_t addrlen;              /* Socket address info struct length */
+    int fd;                         /* Socket file descriptor */
+    
+    int seqnum;                     /* Current sequence number */
+    int windowsz;                   /* Current width of sliding window */
 };
 
 /* Global variable declarations */
@@ -44,5 +44,6 @@ extern int timeout;
 extern char *recvinfofilename;
 extern struct recv recvs[MAXRECV];
 extern int numrecv;
+extern int seqnum;
 
 #endif

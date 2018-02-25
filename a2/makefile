@@ -18,17 +18,17 @@ CFLAGS := -ansi
 LDFLAGS := -L.
 
 # Library flags
-LDLIBS := -lstrconvert
+LDLIBS := -lstrconvert -lqueue
 
 # Default target
 all: sender
 
 # Executable recipes
-sender: sender.o libstrconvert.a
+sender: sender.o libstrconvert.a libqueue.a
 	$(CC) -o $@ $< $(LDFLAGS) $(LDLIBS)
 
 # Object file pattern recipe
-%.o: %.c %.h
+%.o: %.c %.h param.h
 	$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 
 # Static library recipe

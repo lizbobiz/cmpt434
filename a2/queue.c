@@ -14,100 +14,83 @@
  * 
  * Return a reference to a new empty queue.
  ******************************************************************************/
-struct queue* q_create(void) {
+struct queue *q_create(void) {
     struct queue *q;
     
     q = (struct queue *) malloc(sizeof(struct queue));
-    q->head = NULL;
-    q->tail = NULL;
+    q->sz = 0;
     
     return q;
 }
 
-/*******************************************************************************
- * q_is_empty:
- * 
- * Return 1 if the given queue is empty and 0 otherwise. If the given queue
- * pointer is null, -1 is returned and an error message is printed to stderr.
- ******************************************************************************/
-int q_is_empty(struct queue *q) {
-    /* If queue is null, exit on error */
-    if (q == NULL) {
-        fprintf(stderr, "q_is_empty: null queue pointer\n");
-        return -1;
-    }
-    
-    return (q->head == NULL) && (q->tail == NULL);
-}
 
 /*******************************************************************************
- * q_enqueue:
+ * q_push:
  * 
  * Add the given message to the tail of the given queue, returning 0 on success.
  * If the given queue pointer is null, -1 is returned and an error message is
  * printed to stderr.
  ******************************************************************************/
-int q_enqueue(struct queue *q, char *data) {
-    struct node *n;
+int q_push(struct queue *q, char *buf) {
+    struct msg *m;
     
     /* If queue is null, exit on error */
     if (q == NULL) {
-        fprintf(stderr, "enqueue: null queue pointer\n");
+        fprintf(stderr, "q_push: null queue pointer\n");
         return -1;
     }
     
-    /* Create new node */
-    n = (struct node*) malloc(sizeof(struct node));
-    memcpy(n->data, data, sizeof(n->data));
-    n->next = NULL;
-    
-    /* Adjust next node pointer and queue head and tail */
-    if (q->head == NULL) {
-        q->head = n;
-        q->tail = n;
-    } else {
-        q->tail->next = n;
-        q->tail = n;
+    /* If queue is full, exit on error */
+    if (q->sz >= MAXPENDMSG) {
+        fprintf(stderr, "q_push: queue is full\n");
+        return -1;
     }
+    
+    /* Allocate memory for new message */
+    m = (struct msg *) malloc(sizeof(struct msg));
+    
+    /* Set message properties */
+    memcpy(m->buf, buf, sizeof(m->buf));
+    strtoint(strtok(buf, " "), &m->sn);
+    m->numacks = 0;
+    
+    /* Add message to queue */
+    q->msgs[(q->sz)++] = m;
     
     return 0;
 }
 
 /*******************************************************************************
- * q_dequeue:
+ * q_pop:
  * 
  * Remove the node at the head of the given queue and return its data. If the
  * given queue pointer is null or the queue is empty, -1 is returned and an
  * error message is printed to stderr.
  ******************************************************************************/
-char* q_dequeue(struct queue *q) {
-    char *data;
-    struct node *next;
+char *q_pop(struct queue *q) {
+    char *buf;
     
     /* If queue is null, exit on error */
     if (q == NULL) {
-        fprintf(stderr, "dequeue: null queue pointer\n");
+        fprintf(stderr, "q_pop: null queue pointer\n");
         return NULL;
     }
     
     /* If queue is empty, exit on error */
-    if (q->head == NULL) {
-        fprintf(stderr, "dequeue: empty queue\n");
+    if (q->sz == 0) {
+        fprintf(stderr, "q_pop: queue is empty\n");
         return NULL;
     }
     
-    /* Get data and save next node pointer of queue head before freeing it */
-    data = q->head->data;
-    next = q->head->next;
-    free(q->head);
+    /* Save message data and free memory */
+    buf = q->msgs[0]->buf;
+    free(q->msgs[0]);
     
-    /* Adjust next node pointer and queue head and tail */
-    q->head = next;
-    if (q->head == NULL) {
-        q->tail = NULL;
-    }
+    /* Shift array elements up by one */
+    memmove(&q->msgs[0], &q->msgs[1], MSGSZ*sizeof(char));
+    (q->sz)--;
     
-    return data;
+    return buf;
 }
 
 /*******************************************************************************
@@ -117,29 +100,19 @@ char* q_dequeue(struct queue *q) {
  * null, -1 is returned and an error message is printed to stderr.
  ******************************************************************************/
 void q_print(struct queue *q) {
-    struct node *n;
+    int i;
     
-    /* If queue is null, exit on error */
-    if (q == NULL) {
-        fprintf(stderr, "q_print: null queue pointer\n");
+    printf("Printing queue at %p:\n", (void *) q);
+    
+    if (q->sz == 0) {
+        printf("\t(EMPTY)\n");
         return;
     }
     
-    printf("Printing queue at %p:\n", (void*) q);
-    for (n=q->head; n != NULL; n=n->next) {
-        /* Print node data */
-        printf("\t%s", n->data);
-        
-        /* Indicate queue head */
-        if (n == q->head) {
-            printf("\t\t(head)");
-        }
-        
-        /* Indicate queue tail */
-        if (n == q->tail) {
-            printf("\t\t(tail)");
-        }
-        
-        printf("\n");
+    for (i=0; i < q->sz; i++) {
+        printf("\t[%i]:\t", i);
+        printf("( sn = %i )\t", q->msgs[i]->sn);
+        printf("( numacks = %i )\t", q->msgs[i]->numacks);
+        printf("\"%s\"\n", q->msgs[i]->buf);
     }
 }

@@ -16,34 +16,27 @@
 #include "param.h"
 
 /* Library includes */
+#include <errno.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <queue.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strconvert.h>
 #include <string.h>
+#include <sys/time.h>
 #include <unistd.h>
 
-/* Structure representing receiver address info */
-struct recv {
-    char hostname[HOSTNAMESZ];      /* Hostname */
-    char port[PORTSZ];              /* Port number */
+/* Structure representing receiver info */
+struct recvinfo {
+    char *hostname;                 /* Hostname */
+    char *port;                     /* Port number */
     
     struct sockaddr addr;           /* Socket address information */
     socklen_t addrlen;              /* Socket address info struct length */
     int fd;                         /* Socket file descriptor */
     
-    int seqnum;                     /* Current sequence number */
-    int windowsz;                   /* Current width of sliding window */
+    int sn;                         /* Next expected sequence number */
 };
-
-/* Global variable declarations */
-extern int windowsz;
-extern int initseq;
-extern int timeout;
-extern char *recvinfofilename;
-extern struct recv recvs[MAXRECV];
-extern int numrecv;
-extern int seqnum;
 
 #endif

@@ -12,11 +12,13 @@
 
 /* Program configuration constants */
 #define MAXRECV         10          /* Maximum number of receivers */
+#define MAXPENDMSG      512         /* Maximum number of pending messages */
 
 /* Buffer sizes */
-#define HOSTNAMESZ      32          /* Maximum length of hostname string */
-#define PORTSZ          6           /* Maximum length of port number string */
 #define MSGSZ           256         /* Size of buffer for UDP messages */
-#define HEADERSZ        8           /* Size of header for UDP messages */
+
+/* Strings used for program signaling */
+#define INITSTR         "INIT"      /* String to trigger reinitialization */
+#define QUITSTR         "QUIT"      /* String to trigger program termination */
 
 #endif

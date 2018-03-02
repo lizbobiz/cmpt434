@@ -16,25 +16,26 @@
 /* Library includes */
 #include <stdio.h>
 #include <stdlib.h>
+#include <strconvert.h>
 #include <string.h>
 
-/* Structure representing a queue node containing a UDP message */
-struct node {
-    char data[MSGSZ];               /* Node data (i.e. UDP message) */
-    struct node *next;              /* Reference to next node in queue */
+/* Structure representing message in queue */
+struct msg {
+    char buf[MSGSZ];                /* Message buffer */
+    int sn;                         /* Sequence number */
+    int numacks;                    /* Acks received from unique receivers */
 };
 
-/* Structure representing a queue of UDP messages */
+/* Structure representing queue of messages */
 struct queue {
-    struct node *head;              /* Queue head */
-    struct node *tail;              /* Queue tail */
+    int sz;                         /* Number of elements in queue */
+    struct msg *msgs[MAXPENDMSG];   /* Messages stored as array */
 };
 
 /* Function prototypes */
-struct queue*       q_create(void);
-int                 q_is_empty(struct queue*);
-int                 q_enqueue(struct queue*, char*);
-char*               q_dequeue(struct queue*);
-void                q_print(struct queue*);
+struct queue *      q_create(void);
+int                 q_push(struct queue *, char *);
+char *              q_pop(struct queue *);
+void                q_print(struct queue *);
 
 #endif

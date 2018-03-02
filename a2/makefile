@@ -21,10 +21,13 @@ LDFLAGS := -L.
 LDLIBS := -lstrconvert -lqueue
 
 # Default target
-all: sender
+all: sender receiver
 
 # Executable recipes
 sender: sender.o libstrconvert.a libqueue.a
+	$(CC) -o $@ $< $(LDFLAGS) $(LDLIBS)
+
+receiver: receiver.o libstrconvert.a libqueue.a
 	$(CC) -o $@ $< $(LDFLAGS) $(LDLIBS)
 
 # Object file pattern recipe
@@ -38,7 +41,7 @@ lib%.a: %.o
 
 # Clean
 clean:
-	rm -f *.o *.a sender
+	rm -f *.o *.a sender receiver
 
 # Phony targets
 .PHONY: all clean
